@@ -87,7 +87,9 @@ export default async function handler(request, response) {
 
     const result = await sheetsResponse.json()
     if (result?.ok !== true) {
-      console.error('Google Apps Script did not confirm saving a contact submission.')
+      console.error(
+        `Google Apps Script did not confirm saving a contact submission. Diagnostic code: ${result?.code || 'missing_code'}.`
+      )
       return response.status(502).json({ error: 'Your message could not be saved. Please try again later.' })
     }
 

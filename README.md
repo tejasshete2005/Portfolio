@@ -57,6 +57,12 @@ Apps Script confirms it saved the row. The form validates required fields and
 email format; the function also enforces field length limits and same-origin
 requests.
 
+If a submission fails, check the Vercel function logs for the Apps Script
+diagnostic code. `secret_mismatch` means the Vercel and Apps Script secrets do
+not match; `spreadsheet_id_missing` or `sheet_not_found` points to the
+corresponding Script Property or sheet tab setup; `script_error` means Apps
+Script logged the underlying failure in **Executions**.
+
 ## Checks
 
 ```sh
