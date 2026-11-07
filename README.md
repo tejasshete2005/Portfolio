@@ -1,8 +1,8 @@
 # Tejas Shete Portfolio
 
 A React portfolio built with Vite, Motion, and Lucide. The contact form uses a
-Vercel serverless function to forward submissions to a Microsoft Power Automate
-flow; the flow writes each message to an Excel table.
+Vercel serverless function to forward submissions to a Google Apps Script web
+app, which writes each message to a Google Sheet.
 
 ## Development
 
@@ -17,56 +17,45 @@ runtime to test end-to-end.
 
 ## Enable contact form submissions
 
-### 1. Create the Excel workbook and table
+### 1. Create a Google Sheet
 
-Create an `.xlsx` workbook in OneDrive or SharePoint. Add a worksheet with an
-Excel table named `ContactMessages` and these column headers:
+Create a Google spreadsheet and a sheet tab named `ContactMessages`. Add these
+column headers in the first row:
 
 | SubmittedAt | Name | Email | Subject | Message |
 |---|---|---|---|---|
 
-Use Excel's **Format as Table** option so Power Automate can add rows.
+Copy the spreadsheet ID from its URL. It is the value between `/d/` and `/edit`.
 
-### 2. Create the Power Automate flow
+### 2. Create the Apps Script web app
 
-Create an automated cloud flow with the **When an HTTP request is received**
-trigger. Set its request JSON schema to:
+In the spreadsheet, choose **Extensions → Apps Script**. Replace the editor
+contents with [`apps-script/Code.gs`](./apps-script/Code.gs). In **Project
+Settings → Script Properties**, add:
 
-```json
-{
-  "type": "object",
-  "properties": {
-    "submittedAt": { "type": "string" },
-    "name": { "type": "string" },
-    "email": { "type": "string" },
-    "subject": { "type": "string" },
-    "message": { "type": "string" }
-  },
-  "required": ["submittedAt", "name", "email", "subject", "message"]
-}
-```
+- `SPREADSHEET_ID`: the spreadsheet ID copied above
+- `SHEET_NAME`: `ContactMessages`
+- `SUBMISSION_SECRET`: a long, random secret string
 
-Add **Excel Online (Business) → Add a row into a table**, select the workbook
-and `ContactMessages` table, then map each column to the matching trigger
-value. Add a **Response** action after the Excel action with status `200` and
-body:
+Then choose **Deploy → New deployment → Web app**, set **Execute as** to
+yourself and set access to **Anyone**. Deploy and authorize access when
+prompted. Copy the web app URL ending in `/exec`.
 
-```json
-{ "ok": true }
-```
-
-Save and turn on the flow. Copy its generated HTTP POST URL.
-
-### 3. Configure Vercel
+### 3. Configure Vercel and verify
 
 In the Vercel project settings, add an environment variable named
-`POWER_AUTOMATE_URL` with the flow URL as its value, then redeploy. Keep the
-flow URL private: do not add it to frontend code or commit it to the
-repository. The `/api/contact` function reads it server-side.
+`GOOGLE_SHEETS_WEB_APP_URL` with the Apps Script `/exec` URL and
+`GOOGLE_SHEETS_SECRET` with the same secret used for the `SUBMISSION_SECRET`
+script property. Then redeploy. Add them to the Production environment (and
+Preview if needed). Keep both values private: do not add them to frontend code
+or commit them to the repository. The `/api/contact` function reads them
+server-side.
 
-Submissions are only reported as successful after Power Automate accepts
-them. The form validates required fields and email format; the function also
-enforces field length limits and same-origin requests.
+Submit a test message through the deployed contact form and confirm it appears
+as a new row in the sheet. Submissions are only reported as successful after
+Apps Script confirms it saved the row. The form validates required fields and
+email format; the function also enforces field length limits and same-origin
+requests.
 
 ## Checks
 

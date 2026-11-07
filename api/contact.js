@@ -61,31 +61,39 @@ export default async function handler(request, response) {
     return response.status(400).json({ error: 'Enter a valid email address.' })
   }
 
-  const flowUrl = globalThis.process?.env?.POWER_AUTOMATE_URL
-  if (!flowUrl) {
-    console.error('Contact form is unavailable: POWER_AUTOMATE_URL is not configured.')
+  const sheetsUrl = globalThis.process?.env?.GOOGLE_SHEETS_WEB_APP_URL
+  const sheetsSecret = globalThis.process?.env?.GOOGLE_SHEETS_SECRET
+  if (!sheetsUrl || !sheetsSecret) {
+    console.error('Contact form is unavailable: Google Sheets integration environment variables are not configured.')
     return response.status(503).json({ error: 'The contact form is not configured yet. Please try again later.' })
   }
 
   try {
-    const flowResponse = await fetch(flowUrl, {
+    const sheetsResponse = await fetch(sheetsUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...submission,
-        submittedAt: new Date().toISOString()
+        submittedAt: new Date().toISOString(),
+        secret: sheetsSecret
       }),
       signal: AbortSignal.timeout(10000)
     })
 
-    if (!flowResponse.ok) {
-      console.error(`Power Automate rejected a contact submission with status ${flowResponse.status}.`)
+    if (!sheetsResponse.ok) {
+      console.error(`Google Apps Script rejected a contact submission with status ${sheetsResponse.status}.`)
+      return response.status(502).json({ error: 'Your message could not be saved. Please try again later.' })
+    }
+
+    const result = await sheetsResponse.json()
+    if (result?.ok !== true) {
+      console.error('Google Apps Script did not confirm saving a contact submission.')
       return response.status(502).json({ error: 'Your message could not be saved. Please try again later.' })
     }
 
     return response.status(200).json({ ok: true })
   } catch (error) {
-    console.error('Contact form could not reach Power Automate.', error)
+    console.error('Contact form could not reach Google Apps Script.', error)
     return response.status(502).json({ error: 'Your message could not be saved. Please try again later.' })
   }
 }
